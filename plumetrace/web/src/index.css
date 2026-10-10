@@ -34,6 +34,16 @@
   --color-aqi-very-poor: #dc2f3c;
   --color-aqi-severe: #b22f7e;
 
+  /* ---- Eco / environmental accents — LANDING PAGE ONLY ---------------------
+   * The split-theme hero (smog → clean) calls for a nature palette. These are
+   * decorative accents used only on the public landing page so the app's brand
+   * blue and the AQI ordinal ramp keep their meaning inside the dashboards. */
+  --color-eco: #16a34a;        /* clean-green accent */
+  --color-eco-strong: #22c55e; /* brighter green for gradients / hover */
+  --color-eco-deep: #0f7a37;
+  --color-sky: #38bdf8;        /* clear-sky blue */
+  --color-smog: #b4713a;       /* warm smog/sunrise tone from the pollution side */
+
   /* ---- Neutral ramp — cool slate, 11 steps (reference palette) ------------ */
   --color-neutral-1000: #070a10;
   --color-neutral-950: #0a0c11;
@@ -222,6 +232,36 @@
   }
   .pt-hairline { border: 1px solid var(--color-border); }
 
+  /* ---- Over-image glassmorphism (landing hero) --------------------------- *
+   * Sits on top of the photographic hero, so it is tuned for a dark scrim and
+   * light text in BOTH themes rather than following the surface tokens. */
+  .glass-strong {
+    background: rgba(12, 18, 26, 0.42);
+    backdrop-filter: blur(16px) saturate(1.3);
+    -webkit-backdrop-filter: blur(16px) saturate(1.3);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow: 0 20px 60px -30px rgba(0, 0, 0, 0.8), 0 1px 0 0 rgba(255, 255, 255, 0.08) inset;
+  }
+  .glass-panel {
+    background: rgba(12, 18, 26, 0.30);
+    backdrop-filter: blur(12px) saturate(1.2);
+    -webkit-backdrop-filter: blur(12px) saturate(1.2);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+  }
+
+  /* animated eco→sky gradient text (headline accent) */
+  .text-gradient-eco {
+    background: linear-gradient(100deg, var(--color-eco-strong), var(--color-sky) 55%, var(--color-eco-strong));
+    background-size: 220% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: pt-gradient-x 7s ease-in-out infinite;
+  }
+  /* soft lift on hover — premium card feel */
+  .pt-lift { transition: transform 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out), border-color 0.25s var(--ease-out); }
+  .pt-lift:hover { transform: translateY(-4px); box-shadow: 0 24px 50px -28px rgba(0,0,0,0.55); }
+
   /* motion */
   @keyframes pt-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
   .pt-fade-in { animation: pt-fade-in 0.4s var(--ease-out) both; }
@@ -243,6 +283,19 @@
 
   @keyframes pt-pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
   .pt-pulse-dot { animation: pt-pulse-dot 1.8s ease-in-out infinite; }
+
+  @keyframes pt-gradient-x { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+
+  @keyframes pt-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+  .pt-float { animation: pt-float 6s ease-in-out infinite; }
+
+  /* slow Ken-Burns drift on the hero image */
+  @keyframes pt-kenburns { 0% { transform: scale(1.06) translate3d(0,0,0); } 100% { transform: scale(1.14) translate3d(-1.5%, -1.5%, 0); } }
+  .pt-kenburns { animation: pt-kenburns 26s ease-in-out infinite alternate; }
+
+  /* generous fade-up used for scroll-reveal sections */
+  @keyframes pt-rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+  .pt-rise { animation: pt-rise 0.7s var(--ease-out) both; }
 }
 
 @media (prefers-reduced-motion: reduce) {

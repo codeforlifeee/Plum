@@ -1,8 +1,11 @@
 /**
  * OWNER    : Tejas
- * TASK     : Public landing page at `/` — hero live mini-map, problem, how-it-works,
- *            two products (real preview components on mock data), trust, architecture,
- *            footer. CTAs route to /login -> /gov. No stock imagery, no fake screenshots.
+ * TASK     : Public landing page at `/` — edge-to-edge split-theme hero (smog →
+ *            clean), glassmorphism live-data widgets floating on the image,
+ *            live map, how-it-works, two product previews (real components on
+ *            mock data), trust, architecture, footer. CTAs route to /login -> /gov.
+ *            Backend wiring (useLatestRun / useFleetExposure / useSkill) is
+ *            unchanged — only the presentation was redesigned.
  * STATUS   : DONE
  * GUIDE    : brief: docs/PROJECT_BRIEF.md §2.4, §7, §14
  */
@@ -10,7 +13,7 @@ import { Link } from 'react-router-dom';
 import {
   Wind, ArrowRight, Radar, GitBranch, CheckSquare, Activity, ShieldCheck,
   Map as MapIcon, Bike, TrendingUp, AlertTriangle, Database, Cloud, Server,
-  Workflow, Sparkles, Lock, Gauge,
+  Workflow, Sparkles, Lock, Gauge, Leaf, Play,
 } from 'lucide-react';
 import PlumeMap from '../components/map/PlumeMap';
 import AqiLegend from '../components/map/AqiLegend';
@@ -22,15 +25,16 @@ import { ThemeToggle } from '../components/ui/ThemeToggle';
 import { useLatestRun, useFleetExposure, useSkill } from '../hooks/queries';
 import { formatShare } from '../lib/format';
 import { getAqiColor, getAqiBand } from '../lib/aqi';
+import heroSplit from '../assets/hero-split.png';
 
 /* ---------------------------------------------------------------- shell ---- */
 
 function PublicHeader() {
   return (
-    <header className="sticky top-0 z-30 pt-glass border-b border-border">
+    <header className="sticky top-0 z-40 pt-glass border-b border-border/70">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 h-14 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2.5" aria-label="PlumeTrace home">
-          <span className="grid place-items-center w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent text-primary-foreground shadow-lg shadow-primary/20">
+        <Link to="/" className="flex items-center gap-2.5 group" aria-label="PlumeTrace home">
+          <span className="grid place-items-center w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent text-primary-foreground shadow-lg shadow-primary/20 transition-transform duration-200 group-hover:scale-105">
             <Wind size={17} strokeWidth={2.5} aria-hidden />
           </span>
           <span className="text-[15px] font-extrabold tracking-tight">
@@ -42,7 +46,7 @@ function PublicHeader() {
           <Button asChild variant="ghost" size="sm">
             <Link to="/login">Sign in</Link>
           </Button>
-          <Button asChild size="sm">
+          <Button asChild size="sm" className="transition-transform duration-200 hover:scale-[1.04]">
             <Link to="/login">
               Open dashboard <ArrowRight size={15} aria-hidden />
             </Link>
@@ -55,13 +59,16 @@ function PublicHeader() {
 
 function SectionLabel({ children }) {
   return (
-    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-primary mb-3">{children}</div>
+    <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-eco mb-3">
+      <span className="h-1.5 w-1.5 rounded-full bg-eco" aria-hidden />
+      {children}
+    </div>
   );
 }
 
-/* ----------------------------------------------------------------- hero ---- */
+/* ----------------------------------------------- hero: floating live stats -- */
 
-function LiveRunStrip() {
+function LiveStatsGlass() {
   const { data: run } = useLatestRun();
   const band = getAqiBand(run?.max_pm25);
   const items = [
@@ -75,32 +82,36 @@ function LiveRunStrip() {
     {
       label: 'Crop-fire share of Delhi PM2.5',
       value: run ? `${Math.round(run.delhi_fire_share_p50 * 100)}%` : null,
-      color: 'var(--color-primary)',
+      color: '#7cf0b0',
       sub: run ? formatShare(run.delhi_fire_share_p50, run.delhi_fire_share_p10, run.delhi_fire_share_p90) : null,
     },
     {
       label: 'Lead time',
       value: '72',
       unit: 'hours',
+      color: '#8fd8ff',
       sub: 'hourly, with ranges',
     },
   ];
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-px rounded-[var(--radius-lg)] overflow-hidden border border-border bg-border">
-      {items.map((it) => (
-        <div key={it.label} className="bg-card p-4">
-          <div className="text-[11px] font-medium text-muted-foreground">{it.label}</div>
-          <div className="mt-1 flex items-baseline gap-1.5">
+    <div className="glass-strong rounded-[var(--radius-lg)] overflow-hidden grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-white/10">
+      {items.map((it, i) => (
+        <div key={it.label} className="p-4 sm:p-5 pt-rise" style={{ animationDelay: `${280 + i * 90}ms` }}>
+          <div className="text-[11px] font-medium text-white/65">{it.label}</div>
+          <div className="mt-1.5 flex items-baseline gap-1.5">
             {it.value == null ? (
-              <div className="pt-skeleton h-7 w-16 mt-1" />
+              <div className="pt-skeleton h-8 w-16 mt-1 bg-white/10" />
             ) : (
-              <span className="text-2xl font-extrabold tracking-tight tnum" style={it.color ? { color: it.color } : undefined}>
+              <span
+                className="text-[1.9rem] leading-none font-extrabold tracking-tight tnum"
+                style={it.color ? { color: it.color } : { color: '#fff' }}
+              >
                 {it.value}
               </span>
             )}
-            {it.unit && <span className="text-xs text-muted-foreground">{it.unit}</span>}
+            {it.unit && <span className="text-xs text-white/55">{it.unit}</span>}
           </div>
-          <div className="text-[11px] text-muted-foreground mt-0.5 tnum h-4">{it.sub}</div>
+          <div className="text-[11px] text-white/55 mt-1 tnum h-4">{it.sub}</div>
         </div>
       ))}
     </div>
@@ -109,56 +120,115 @@ function LiveRunStrip() {
 
 function Hero() {
   return (
-    <section className="mx-auto max-w-6xl px-4 sm:px-6 pt-14 pb-10 sm:pt-20">
-      <div className="grid lg:grid-cols-[1.05fr_1fr] gap-10 lg:gap-12 items-center">
-        <div className="pt-fade-in">
-          <Badge tone="brand" icon={Activity} className="mb-5">
-            Live · Delhi-NCR · 72-hour source-attributed forecast
-          </Badge>
-          <h1 className="text-[2.1rem] leading-[1.08] sm:text-5xl sm:leading-[1.05] font-extrabold tracking-tight">
-            Know where Delhi's smoke<br className="hidden sm:block" /> comes from,{' '}
-            <span className="text-primary">72 hours ahead.</span>
-          </h1>
-          <p className="mt-5 text-[15px] sm:text-base text-muted-foreground max-w-xl leading-relaxed">
-            PlumeTrace forecasts PM2.5 across Delhi-NCR and attributes it to its sources —
-            crop fires, traffic, industry — hour by hour, always as an estimate with a range.
-            Governments see accountability; fleets protect the people breathing it.
-          </p>
-          <div className="mt-7 flex flex-wrap items-center gap-3">
-            <Button asChild size="lg">
-              <Link to="/login">
-                Open dashboard <ArrowRight size={16} aria-hidden />
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="outline">
-              <a href="#how">How it works</a>
-            </Button>
-          </div>
-          <p className="mt-4 text-xs text-muted-foreground flex items-center gap-1.5">
-            <ShieldCheck size={13} className="text-success" aria-hidden />
-            Estimates with p10–p90 ranges, never verdicts.
-          </p>
-        </div>
-
-        {/* live mini-map */}
-        <div className="pt-fade-in" style={{ animationDelay: '80ms' }}>
-          <div className="pt-card p-2 overflow-hidden">
-            <div className="relative h-[340px] sm:h-[420px] rounded-[calc(var(--radius-lg)-6px)] overflow-hidden min-h-0 bg-muted">
-              <PlumeMap districtData={null} fireData={null} />
-              <div className="absolute top-3 right-3 z-10">
-                <AqiLegend />
-              </div>
-              <div className="absolute bottom-3 left-3 z-10 pt-glass rounded-lg px-3 py-1.5 text-[11px] text-muted-foreground flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary pt-pulse-dot" />
-                Back-trajectories flowing into Delhi · mock run
-              </div>
-            </div>
-          </div>
-        </div>
+    <section className="relative isolate overflow-hidden min-h-[94vh] flex items-end">
+      {/* edge-to-edge split-theme image (smog → clean) */}
+      <div className="absolute inset-0 -z-10">
+        <img
+          src={heroSplit}
+          alt="Delhi airshed — polluted skyline on the left transitioning to clean, green city on the right"
+          className="w-full h-full object-cover pt-kenburns"
+        />
+        {/* readability scrims: dark on the left for text, fade into the page below */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/88 via-black/55 to-black/15" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/15 to-black/45" />
       </div>
 
-      <div className="mt-10">
-        <LiveRunStrip />
+      <div className="relative mx-auto max-w-6xl w-full px-4 sm:px-6 pt-28 pb-14 sm:pb-16">
+        {/* floating concept pill */}
+        <div
+          className="glass-panel pt-float inline-flex items-center gap-2 rounded-full pl-2.5 pr-4 py-1.5 text-[13px] text-white/90 mb-7 pt-rise"
+          style={{ animationDelay: '60ms' }}
+        >
+          <span className="grid place-items-center w-6 h-6 rounded-full bg-eco/90 text-white">
+            <Leaf size={13} strokeWidth={2.4} aria-hidden />
+          </span>
+          From smog to cleaner skies — with data-driven action.
+        </div>
+
+        <h1
+          className="max-w-3xl text-[2.6rem] leading-[1.02] sm:text-[4.1rem] sm:leading-[0.98] font-extrabold tracking-tight text-white pt-rise"
+          style={{ animationDelay: '120ms' }}
+        >
+          Cleaner tomorrows,{' '}
+          <span className="text-gradient-eco">built on data today.</span>
+        </h1>
+
+        <p
+          className="mt-6 max-w-xl text-[15px] sm:text-lg text-white/80 leading-relaxed pt-rise"
+          style={{ animationDelay: '180ms' }}
+        >
+          Know where Delhi's smoke comes from, <span className="font-semibold text-white">72 hours ahead.</span>{' '}
+          PlumeTrace forecasts PM2.5 across Delhi-NCR and attributes it to its sources — crop fires, traffic,
+          industry — always as an estimate with a range. Governments see accountability; fleets protect the
+          people breathing it.
+        </p>
+
+        <div
+          className="mt-8 flex flex-wrap items-center gap-3 pt-rise"
+          style={{ animationDelay: '240ms' }}
+        >
+          <Button
+            asChild
+            size="lg"
+            className="h-12 px-6 text-[15px] bg-gradient-to-br from-eco-strong to-eco text-white shadow-[0_18px_40px_-16px_var(--color-eco)] hover:from-eco hover:to-eco-deep transition-transform duration-200 hover:scale-[1.04]"
+          >
+            <Link to="/login">
+              Open dashboard <ArrowRight size={17} aria-hidden />
+            </Link>
+          </Button>
+          <Button
+            asChild
+            size="lg"
+            variant="outline"
+            className="h-12 px-5 text-[15px] border-white/30 text-white bg-white/5 hover:bg-white/15 hover:border-white/50 transition-transform duration-200 hover:scale-[1.03]"
+          >
+            <a href="#how"><Play size={15} aria-hidden /> How it works</a>
+          </Button>
+        </div>
+
+        <p
+          className="mt-5 text-xs text-white/70 flex items-center gap-1.5 pt-rise"
+          style={{ animationDelay: '300ms' }}
+        >
+          <ShieldCheck size={13} className="text-eco-strong" aria-hidden />
+          Estimates with p10–p90 ranges, never verdicts.
+        </p>
+
+        {/* floating live-data widgets on the image */}
+        <div className="mt-10">
+          <LiveStatsGlass />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ----------------------------------------------------------- live airshed -- */
+
+function LiveMap() {
+  return (
+    <section className="mx-auto max-w-6xl px-4 sm:px-6 py-16">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-6">
+        <div>
+          <SectionLabel>Live airshed</SectionLabel>
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">See the smoke move into Delhi.</h2>
+          <p className="mt-2 text-sm text-muted-foreground max-w-xl">
+            Back-trajectories, fire detections and the forecast PM2.5 field — animated across the 72-hour horizon.
+          </p>
+        </div>
+        <Button asChild variant="secondary" size="sm" className="transition-transform duration-200 hover:scale-[1.04] shrink-0">
+          <Link to="/login">Open the full map <ArrowRight size={14} aria-hidden /></Link>
+        </Button>
+      </div>
+      <div className="pt-card p-2 overflow-hidden pt-lift">
+        <div className="relative h-[360px] sm:h-[500px] rounded-[calc(var(--radius-lg)-6px)] overflow-hidden min-h-0 bg-muted">
+          <PlumeMap districtData={null} fireData={null} />
+          <div className="absolute top-3 right-3 z-10"><AqiLegend /></div>
+          <div className="absolute bottom-3 left-3 z-10 pt-glass rounded-lg px-3 py-1.5 text-[11px] text-muted-foreground flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary pt-pulse-dot" />
+            Back-trajectories flowing into Delhi · mock run
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -213,9 +283,9 @@ function HowItWorks() {
         {STEPS.map((s, i) => {
           const Icon = s.icon;
           return (
-            <li key={s.title} className="pt-card p-5 relative">
+            <li key={s.title} className="pt-card p-5 relative pt-lift group">
               <div className="flex items-center justify-between">
-                <span className="grid place-items-center w-10 h-10 rounded-lg bg-primary/12 text-primary border border-primary/20">
+                <span className="grid place-items-center w-10 h-10 rounded-lg bg-eco/12 text-eco border border-eco/25 transition-transform duration-200 group-hover:scale-110">
                   <Icon size={19} strokeWidth={2.1} aria-hidden />
                 </span>
                 <span className="text-xs font-bold text-muted-foreground/60 tnum">0{i + 1}</span>
@@ -306,7 +376,7 @@ function Products() {
         {PRODUCTS.map((p) => {
           const Icon = p.icon;
           return (
-            <div key={p.tone} className="pt-card p-5 sm:p-6 flex flex-col">
+            <div key={p.tone} className="pt-card p-5 sm:p-6 flex flex-col pt-lift">
               <div className="flex items-center gap-2.5">
                 <span className="grid place-items-center w-9 h-9 rounded-lg bg-primary/12 text-primary border border-primary/20">
                   <Icon size={18} strokeWidth={2.1} aria-hidden />
@@ -317,7 +387,7 @@ function Products() {
               <p className="mt-2 text-[13px] text-muted-foreground leading-relaxed">{p.body}</p>
               <div className="mt-5">{p.preview}</div>
               <div className="mt-5 pt-1">
-                <Button asChild variant="secondary" size="sm">
+                <Button asChild variant="secondary" size="sm" className="transition-transform duration-200 hover:scale-[1.04]">
                   <Link to="/login">
                     {p.cta} <ArrowRight size={14} aria-hidden />
                   </Link>
@@ -376,7 +446,7 @@ function Trust() {
           </div>
         </div>
 
-        <div className="pt-card p-5 sm:p-6">
+        <div className="pt-card p-5 sm:p-6 pt-lift">
           <h3 className="text-sm font-semibold">Data sources</h3>
           <p className="text-xs text-muted-foreground mt-1">Open, licensed, attributable.</p>
           <div className="mt-4 divide-y divide-border">
@@ -421,7 +491,7 @@ function Architecture() {
           {stack.map((s) => {
             const Icon = s.icon;
             return (
-              <span key={s.label} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary border border-border text-[13px] text-foreground">
+              <span key={s.label} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary border border-border text-[13px] text-foreground transition-transform duration-200 hover:scale-[1.04] hover:border-primary/40">
                 <Icon size={15} className="text-primary" strokeWidth={2.1} aria-hidden />
                 {s.label}
               </span>
@@ -478,6 +548,7 @@ export default function LandingPage() {
       <PublicHeader />
       <main>
         <Hero />
+        <LiveMap />
         <Problem />
         <HowItWorks />
         <Products />
