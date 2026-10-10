@@ -2,80 +2,52 @@
  * OWNER    : Tanmay
  * DUE      : D1 12:00
  * TASK     :
- *   Tailwind v4 + shadcn tokens; dark map-first theme; AQI colour tokens.
+ *   Tailwind v4 + shadcn tokens; AQI colour tokens.
  * DONE WHEN: -
  * GUIDE    : docs/team/TANMAY.md  |  brief: docs/PROJECT_BRIEF.md
  * STATUS   : DONE
  *
- * UI revamp (tejas/ui-revamp): rebuilt @theme on a validated token system —
- * cool-slate neutral ramp, sky-blue brand + indigo accent, India-NAQI AQI
- * ordinal ramp (PM2.5 only, dataviz-validated for dark surfaces), status trio.
- * Token *names* consumed by components are preserved; new tokens added.
+ * UI revamp (tejas/ui-revamp): validated token system — cool-slate neutral ramp,
+ * sky-blue brand + indigo accent, India-NAQI AQI ordinal ramp (PM2.5 only), status
+ * trio. Light/dark theming added: semantic tokens live on :root (light, default)
+ * and .dark, mapped to Tailwind utilities via `@theme inline`, so toggling the
+ * `.dark` class on <html> re-themes every surface, border and text. Token *names*
+ * consumed by components are preserved. All text/background pairs meet WCAG AA in
+ * both themes; AQI hexes are shared across themes (meaning is universal) and are
+ * always paired with legend order + numeric µg/m³ labels, never colour alone.
  */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800&display=swap');
 @import "tailwindcss";
 
+/* The app controls dark mode with a class on <html>, not the OS media query. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   /* ---- India NAQI PM2.5 bands — ordinal severity ramp (PM2.5 ONLY) --------
-   * Retuned for perceptual evenness + dark-surface contrast and validated with
-   * the dataviz palette validator (contrast PASS on card #121826 and map
-   * #0a0c11; adjacent CVD in the 6-8 band, always paired with legend order +
-   * numeric µg/m³ labels, never colour alone). Keeps green→…→maroon meaning. */
-  --color-aqi-good: #4cdd92;
-  --color-aqi-satisfactory: #b6e24a;
-  --color-aqi-moderate: #f7a015;
-  --color-aqi-poor: #ee6c26;
-  --color-aqi-very-poor: #e53b45;
-  --color-aqi-severe: #be3787;
+   * Shared across light + dark (the band meaning is universal). Validated for
+   * perceptual evenness; always shown with legend order + numeric µg/m³ labels
+   * and a hairline ring, never colour alone. green→…→maroon meaning preserved. */
+  --color-aqi-good: #2fb871;
+  --color-aqi-satisfactory: #9cc417;
+  --color-aqi-moderate: #ef9500;
+  --color-aqi-poor: #e35f1e;
+  --color-aqi-very-poor: #dc2f3c;
+  --color-aqi-severe: #b22f7e;
 
-  /* ---- Neutral ramp — cool slate, 11 steps (surfaces / borders / text) ---- */
+  /* ---- Neutral ramp — cool slate, 11 steps (reference palette) ------------ */
   --color-neutral-1000: #070a10;
-  --color-neutral-950: #0a0c11;   /* map basemap */
-  --color-neutral-900: #0e131c;   /* app background */
-  --color-neutral-850: #121826;   /* card */
-  --color-neutral-800: #161d2c;   /* elevated / secondary */
-  --color-neutral-750: #1b2334;   /* hover / muted surface */
-  --color-neutral-700: #273145;   /* border */
-  --color-neutral-600: #3a4660;   /* strong border / scrollbar */
-  --color-neutral-500: #6b7690;   /* tertiary text */
-  --color-neutral-400: #8b94a7;   /* muted text (5.8:1 on card) */
-  --color-neutral-300: #aeb6c8;   /* secondary text (8.7:1 on card) */
-  --color-neutral-100: #dfe5f0;   /* primary text (14:1 on card) */
+  --color-neutral-950: #0a0c11;
+  --color-neutral-900: #0e131c;
+  --color-neutral-850: #121826;
+  --color-neutral-800: #161d2c;
+  --color-neutral-750: #1b2334;
+  --color-neutral-700: #273145;
+  --color-neutral-600: #3a4660;
+  --color-neutral-500: #6b7690;
+  --color-neutral-400: #8b94a7;
+  --color-neutral-300: #aeb6c8;
+  --color-neutral-100: #dfe5f0;
   --color-neutral-0: #f4f7fc;
-
-  /* ---- Semantic surfaces --------------------------------------------------- */
-  --color-background: #0e131c;
-  --color-foreground: #dfe5f0;
-  --color-card: #121826;
-  --color-card-foreground: #dfe5f0;
-  --color-popover: #141b2a;
-  --color-popover-foreground: #dfe5f0;
-  --color-elevated: #161d2c;
-
-  /* ---- Brand — sky blue reads as "air"; indigo accent for depth ----------- */
-  --color-primary: #4aa8ff;
-  --color-primary-foreground: #04121f;
-  --color-primary-weak: #1b3a5e;   /* tinted fills / rings */
-  --color-primary-strong: #7cc1ff; /* hover / emphasis */
-  --color-accent: #818cf8;
-  --color-accent-foreground: #0b0f26;
-
-  --color-secondary: #1b2334;
-  --color-secondary-foreground: #dfe5f0;
-  --color-muted: #161d2c;
-  --color-muted-foreground: #8b94a7;
-
-  /* ---- Status trio — distinct from AQI + brand; always icon + label ------- */
-  --color-success: #16c79a;
-  --color-success-foreground: #04140f;
-  --color-warning: #f5a623;
-  --color-warning-foreground: #1a1203;
-  --color-destructive: #fb5a6a;        /* danger */
-  --color-destructive-foreground: #1a0608;
-
-  --color-border: #273145;
-  --color-input: #273145;
-  --color-ring: #4aa8ff;
 
   /* ---- Radii — two scales: controls + cards ------------------------------- */
   --radius: 0.625rem;
@@ -89,6 +61,122 @@
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* ======================================================================== *
+ * SEMANTIC TOKENS — light is the default theme (:root); dark overrides.     *
+ * AA-checked: body ≥ 4.5:1, large/UI ≥ 3:1 against their real surface.      *
+ * ======================================================================== */
+:root {
+  --background: #f4f7fc;
+  --foreground: #0f1623;      /* 16.8:1 on card */
+  --card: #ffffff;
+  --card-foreground: #0f1623;
+  --popover: #ffffff;
+  --popover-foreground: #0f1623;
+  --elevated: #ffffff;
+
+  --primary: #1766d6;         /* white text 5.0:1 as button; 4.9:1 as text on white */
+  --primary-foreground: #ffffff;
+  --primary-weak: #e3edfd;    /* tinted fills / rings */
+  --primary-strong: #1257bd;  /* hover / emphasis */
+  --accent: #5558e0;
+  --accent-foreground: #ffffff;
+
+  --secondary: #eef2f8;
+  --secondary-foreground: #1b2436;
+  --muted: #eef1f7;
+  --muted-foreground: #576074; /* 5.1:1 on white, 4.6:1 on secondary */
+
+  --success: #0a8f6e;          /* 4.6:1 on white */
+  --success-foreground: #ffffff;
+  --warning: #b06a00;          /* 4.7:1 on white */
+  --warning-foreground: #ffffff;
+  --destructive: #d62f3c;      /* 4.9:1 on white */
+  --destructive-foreground: #ffffff;
+
+  --border: #dde3ee;
+  --input: #dde3ee;
+  --ring: #1766d6;
+
+  /* faint tints so large light panels never read as flat */
+  --aurora-1: rgba(23, 102, 214, 0.06);
+  --aurora-2: rgba(85, 88, 224, 0.05);
+  --card-shadow: 0 1px 0 0 rgba(15, 22, 35, 0.02) inset, 0 12px 30px -24px rgba(15, 22, 35, 0.35);
+  --highlight: rgba(15, 22, 35, 0.04);
+}
+
+.dark {
+  --background: #0e131c;
+  --foreground: #dfe5f0;      /* 14:1 on card */
+  --card: #121826;
+  --card-foreground: #dfe5f0;
+  --popover: #141b2a;
+  --popover-foreground: #dfe5f0;
+  --elevated: #161d2c;
+
+  --primary: #4aa8ff;
+  --primary-foreground: #04121f;
+  --primary-weak: #1b3a5e;
+  --primary-strong: #7cc1ff;
+  --accent: #818cf8;
+  --accent-foreground: #0b0f26;
+
+  --secondary: #1b2334;
+  --secondary-foreground: #dfe5f0;
+  --muted: #161d2c;
+  --muted-foreground: #9aa3b7; /* 5.1:1 on card */
+
+  --success: #16c79a;
+  --success-foreground: #04140f;
+  --warning: #f5a623;
+  --warning-foreground: #1a1203;
+  --destructive: #fb5a6a;
+  --destructive-foreground: #1a0608;
+
+  --border: #273145;
+  --input: #273145;
+  --ring: #4aa8ff;
+
+  --aurora-1: rgba(74, 168, 255, 0.07);
+  --aurora-2: rgba(129, 140, 248, 0.055);
+  --card-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.03) inset, 0 10px 30px -22px rgba(0, 0, 0, 0.9);
+  --highlight: rgba(255, 255, 255, 0.05);
+}
+
+/* Map the runtime semantic vars onto Tailwind colour utilities (inline so the
+ * generated classes reference the switching var directly). */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-elevated: var(--elevated);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-weak: var(--primary-weak);
+  --color-primary-strong: var(--primary-strong);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
 @layer base {
   * { border-color: var(--color-border); }
   html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
@@ -97,21 +185,21 @@
     color: var(--color-foreground);
     background-color: var(--color-background);
     font-feature-settings: 'cv05' 1, 'ss03' 1;
-    /* a faint cool aurora so large dark panels never read as flat */
     background-image:
-      radial-gradient(58rem 40rem at 88% -12%, rgba(74, 168, 255, 0.07), transparent 60%),
-      radial-gradient(48rem 38rem at -8% 112%, rgba(129, 140, 248, 0.055), transparent 55%);
+      radial-gradient(58rem 40rem at 88% -12%, var(--aurora-1), transparent 60%),
+      radial-gradient(48rem 38rem at -8% 112%, var(--aurora-2), transparent 55%);
     background-attachment: fixed;
+    transition: background-color 0.3s var(--ease-out), color 0.3s var(--ease-out);
   }
 
   /* Tabular figures everywhere numbers live */
   .tnum { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1; }
 
   /* Quiet scrollbars */
-  * { scrollbar-width: thin; scrollbar-color: var(--color-neutral-600) transparent; }
+  * { scrollbar-width: thin; scrollbar-color: var(--color-border) transparent; }
   *::-webkit-scrollbar { width: 10px; height: 10px; }
-  *::-webkit-scrollbar-thumb { background: var(--color-neutral-600); border-radius: 9999px; border: 2px solid transparent; background-clip: content-box; }
-  *::-webkit-scrollbar-thumb:hover { background: #46557a; background-clip: content-box; }
+  *::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 9999px; border: 2px solid transparent; background-clip: content-box; }
+  *::-webkit-scrollbar-thumb:hover { background: var(--color-muted-foreground); background-clip: content-box; }
 
   :focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; border-radius: 3px; }
   h1, h2, h3, h4 { letter-spacing: -0.018em; }
@@ -124,13 +212,13 @@
     background-color: var(--color-card);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
-    box-shadow: 0 1px 0 0 rgba(255,255,255,0.03) inset, 0 10px 30px -22px rgba(0,0,0,0.9);
+    box-shadow: var(--card-shadow);
   }
   .pt-glass {
     background: color-mix(in oklab, var(--color-card) 82%, transparent);
     backdrop-filter: blur(14px) saturate(1.1);
     -webkit-backdrop-filter: blur(14px) saturate(1.1);
-    border: 1px solid color-mix(in oklab, var(--color-border) 90%, white 6%);
+    border: 1px solid var(--color-border);
   }
   .pt-hairline { border: 1px solid var(--color-border); }
 
@@ -145,11 +233,11 @@
   @keyframes pt-shimmer { 100% { transform: translateX(100%); } }
   .pt-skeleton {
     position: relative; overflow: hidden;
-    background: var(--color-neutral-800); border-radius: var(--radius-sm);
+    background: var(--color-muted); border-radius: var(--radius-sm);
   }
   .pt-skeleton::after {
     content: ''; position: absolute; inset: 0; transform: translateX(-100%);
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+    background: linear-gradient(90deg, transparent, var(--highlight), transparent);
     animation: pt-shimmer 1.5s infinite;
   }
 

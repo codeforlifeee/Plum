@@ -78,7 +78,7 @@ export default function TimeSlider() {
 
       <style>{`
         .pt-range { -webkit-appearance:none; appearance:none; height:6px; border-radius:9999px;
-          background: linear-gradient(90deg, var(--color-primary) var(--pct), var(--color-neutral-800) var(--pct)); cursor:pointer; }
+          background: linear-gradient(90deg, var(--color-primary) var(--pct), var(--color-muted) var(--pct)); cursor:pointer; }
         .pt-range:focus-visible { outline:2px solid var(--color-ring); outline-offset:3px; }
         .pt-range::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:16px; height:16px; border-radius:9999px;
           background:#fff; border:3px solid var(--color-primary); box-shadow:0 2px 6px rgba(0,0,0,.4); margin-top:0; }

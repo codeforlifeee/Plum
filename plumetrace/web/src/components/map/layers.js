@@ -35,8 +35,11 @@ export function createFiresLayer(data) {
   });
 }
 
-export function createTripsLayer(data, currentTime) {
+export function createTripsLayer(data, currentTime, theme = 'dark') {
   if (!data || !data.features) return null;
+  // Brand-blue trails read cleanly on the light basemap; a brighter cyan glows
+  // on the dark one.
+  const trailColor = theme === 'light' ? [23, 102, 214] : [120, 220, 255];
   return new TripsLayer({
     id: 'trips-layer',
     data: data.features,
@@ -53,7 +56,7 @@ export function createTripsLayer(data, currentTime) {
       }
       return d.geometry.coordinates.map((_, i) => i);
     },
-    getColor: [120, 220, 255],
+    getColor: trailColor,
     opacity: 0.9,
     widthMinPixels: 3,
     jointRounded: true,
@@ -64,8 +67,10 @@ export function createTripsLayer(data, currentTime) {
   });
 }
 
-export function createH3Layer(data, uncertaintyToggle = false) {
+export function createH3Layer(data, uncertaintyToggle = false, theme = 'dark') {
   if (!data || !data.features) return null;
+  // Hairline cell borders: white on the dark basemap, dark slate on the light one.
+  const lineColor = theme === 'light' ? [15, 22, 35, 28] : [255, 255, 255, 25];
   return new H3HexagonLayer({
     id: 'h3-layer',
     data: data.features,
@@ -73,8 +78,8 @@ export function createH3Layer(data, uncertaintyToggle = false) {
     filled: true,
     stroked: true,
     extruded: false,
-    opacity: 0.55,
-    getLineColor: [255, 255, 255, 25],
+    opacity: theme === 'light' ? 0.62 : 0.55,
+    getLineColor: lineColor,
     lineWidthMinPixels: 0.5,
     getFillColor: d => {
       const pm25 = d.properties?.pm25 ?? d.pm25;

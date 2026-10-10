@@ -14,6 +14,15 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
 import App from './App.jsx';
 import './index.css';
+import { getInitialTheme, applyTheme, useThemeStore } from './stores/themeStore';
+
+// Apply the stored/default theme before first paint so there is no flash.
+applyTheme(getInitialTheme());
+
+function ThemedToaster() {
+  const theme = useThemeStore((s) => s.theme);
+  return <Toaster theme={theme} richColors closeButton />;
+}
 
 const queryClient = new QueryClient();
 
@@ -22,7 +31,7 @@ createRoot(document.getElementById('root')).render(
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <App />
-        <Toaster theme="dark" />
+        <ThemedToaster />
       </BrowserRouter>
     </QueryClientProvider>
   </StrictMode>

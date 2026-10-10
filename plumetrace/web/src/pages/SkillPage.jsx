@@ -11,23 +11,29 @@ import { useState } from 'react';
 import { ComposedChart, Area, Line, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Info, LineChart as LineChartIcon, Table as TableIcon } from 'lucide-react';
 import { useSkill, useStation, useLatestRun } from '../hooks/queries';
+import { useThemeStore } from '../stores/themeStore';
 import { SegmentedControl } from '../components/ui/Tabs';
 import { Stat } from '../components/ui/Stat';
 import { Table, THead, TBody, Tr } from '../components/ui/Table';
 import { EmptyState } from '../components/ui/EmptyState';
 
 const STATION_ID = '1420'; // Anand Vihar
-const BRAND = '#4aa8ff';
-const OBS = '#eef2f9';
 
-function ChartTooltip({ active, payload, label }) {
+// Chart palette resolved per theme so the grid, axes and observed points stay
+// legible on both the dark and the light card surface.
+const CHART = {
+  dark:  { brand: '#4aa8ff', obs: '#eef2f9', obsStroke: '#121826', grid: '#273145', axis: '#9aa3b7' },
+  light: { brand: '#1766d6', obs: '#0f1623', obsStroke: '#ffffff', grid: '#dde3ee', axis: '#576074' },
+};
+
+function ChartTooltip({ active, payload, label, c }) {
   if (!active || !payload?.length) return null;
   const p = payload[0]?.payload || {};
   return (
     <div className="rounded-[var(--radius-sm)] border border-border bg-popover px-3 py-2 text-xs shadow-xl">
       <div className="font-semibold mb-1 tnum">+{label} h lead</div>
       <div className="flex items-center gap-2 tnum">
-        <span className="w-2 h-2 rounded-full" style={{ background: BRAND }} />
+        <span className="w-2 h-2 rounded-full" style={{ background: c.brand }} />
         Median <span className="text-foreground font-medium">{Math.round(p.p50)}</span> µg/m³
       </div>
       {Array.isArray(p.range) && (
@@ -35,7 +41,7 @@ function ChartTooltip({ active, payload, label }) {
       )}
       {p.actual != null && (
         <div className="flex items-center gap-2 tnum mt-1">
-          <span className="w-2 h-2 rounded-full ring-2 ring-popover" style={{ background: OBS }} />
+          <span className="w-2 h-2 rounded-full ring-2 ring-popover" style={{ background: c.obs }} />
           Observed <span className="text-foreground font-medium">{Math.round(p.actual)}</span> µg/m³
         </div>
       )}
@@ -43,12 +49,12 @@ function ChartTooltip({ active, payload, label }) {
   );
 }
 
-function Legend() {
+function Legend({ c }) {
   return (
     <div className="flex items-center gap-4 text-xs text-muted-foreground">
-      <span className="flex items-center gap-1.5"><span className="w-4 h-0.5 rounded-full" style={{ background: BRAND }} /> Median forecast</span>
-      <span className="flex items-center gap-1.5"><span className="w-4 h-2 rounded-sm" style={{ background: BRAND, opacity: 0.18 }} /> p10–p90</span>
-      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full ring-2 ring-background" style={{ background: OBS }} /> Observed</span>
+      <span className="flex items-center gap-1.5"><span className="w-4 h-0.5 rounded-full" style={{ background: c.brand }} /> Median forecast</span>
+      <span className="flex items-center gap-1.5"><span className="w-4 h-2 rounded-sm" style={{ background: c.brand, opacity: 0.18 }} /> p10–p90</span>
+      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full ring-2 ring-background" style={{ background: c.obs }} /> Observed</span>
     </div>
   );
 }
@@ -59,6 +65,8 @@ export default function SkillPage() {
   const { data: skill } = useSkill(7);
   const { data: run } = useLatestRun();
   const { data: station } = useStation(STATION_ID, run?.run_id);
+  const theme = useThemeStore((s) => s.theme);
+  const c = CHART[theme] || CHART.dark;
 
   const chartData = (station?.series || []).map((p) => ({
     time: p.lead_h,
@@ -115,7 +123,7 @@ export default function SkillPage() {
             <p className="text-[11px] text-muted-foreground mt-0.5">PM2.5 µg/m³ across the 72-hour horizon</p>
           </div>
           <div className="flex items-center gap-3">
-            <Legend />
+            <Legend c={c} />
             <SegmentedControl
               ariaLabel="Chart or table view"
               size="sm"
@@ -134,21 +142,21 @@ export default function SkillPage() {
               <ComposedChart data={chartData} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
                 <defs>
                   <linearGradient id="band" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={BRAND} stopOpacity={0.22} />
-                    <stop offset="100%" stopColor={BRAND} stopOpacity={0.06} />
+                    <stop offset="0%" stopColor={c.brand} stopOpacity={0.22} />
+                    <stop offset="100%" stopColor={c.brand} stopOpacity={0.06} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid vertical={false} stroke="#273145" strokeOpacity={0.5} />
+                <CartesianGrid vertical={false} stroke={c.grid} strokeOpacity={0.6} />
                 <XAxis
-                  dataKey="time" tickLine={false} axisLine={{ stroke: '#273145' }}
-                  tick={{ fill: '#8b94a7', fontSize: 11 }}
-                  tickFormatter={(v) => `+${v}h`} label={{ value: 'Lead time', position: 'insideBottom', offset: -2, fill: '#8b94a7', fontSize: 11 }}
+                  dataKey="time" tickLine={false} axisLine={{ stroke: c.grid }}
+                  tick={{ fill: c.axis, fontSize: 11 }}
+                  tickFormatter={(v) => `+${v}h`} label={{ value: 'Lead time', position: 'insideBottom', offset: -2, fill: c.axis, fontSize: 11 }}
                 />
-                <YAxis tickLine={false} axisLine={false} tick={{ fill: '#8b94a7', fontSize: 11 }} width={40} />
-                <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#4aa8ff', strokeOpacity: 0.4, strokeDasharray: '3 3' }} />
+                <YAxis tickLine={false} axisLine={false} tick={{ fill: c.axis, fontSize: 11 }} width={40} />
+                <Tooltip content={<ChartTooltip c={c} />} cursor={{ stroke: c.brand, strokeOpacity: 0.4, strokeDasharray: '3 3' }} />
                 <Area type="monotone" dataKey="range" stroke="none" fill="url(#band)" name="p10–p90" isAnimationActive={false} />
-                <Line type="monotone" dataKey="p50" stroke={BRAND} strokeWidth={2} dot={false} name="Median" />
-                <Scatter dataKey="actual" fill={OBS} stroke="#121826" strokeWidth={2} name="Observed" />
+                <Line type="monotone" dataKey="p50" stroke={c.brand} strokeWidth={2} dot={false} name="Median" />
+                <Scatter dataKey="actual" fill={c.obs} stroke={c.obsStroke} strokeWidth={2} name="Observed" />
               </ComposedChart>
             </ResponsiveContainer>
           ) : (

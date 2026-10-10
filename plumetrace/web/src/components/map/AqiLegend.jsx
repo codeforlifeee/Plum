@@ -19,7 +19,7 @@ export default function AqiLegend() {
         {AQI_BANDS.map((band) => (
           <div key={band.label} className="flex items-center gap-2.5">
             <span
-              className="w-3.5 h-3.5 rounded-[4px] shrink-0 ring-1 ring-inset ring-white/10"
+              className="w-3.5 h-3.5 rounded-[4px] shrink-0 ring-1 ring-inset ring-foreground/15"
               style={{ backgroundColor: band.color }}
             />
             <span className="text-muted-foreground tabular-nums w-14 text-[11px]">
@@ -30,7 +30,7 @@ export default function AqiLegend() {
         ))}
         {/* no-data treatment, matching the faint slate fill used on the map */}
         <div className="flex items-center gap-2.5 pt-1.5 mt-1 border-t border-border/60">
-          <span className="w-3.5 h-3.5 rounded-[4px] shrink-0 ring-1 ring-inset ring-white/10 bg-[#5a6478]/40" />
+          <span className="w-3.5 h-3.5 rounded-[4px] shrink-0 ring-1 ring-inset ring-foreground/15 bg-muted-foreground/40" />
           <span className="text-[11px] text-muted-foreground">No data</span>
         </div>
       </div>

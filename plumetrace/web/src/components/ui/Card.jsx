@@ -10,7 +10,7 @@ export function Card({ className, as: Comp = 'div', interactive = false, ...prop
     <Comp
       className={cn(
         'pt-card',
-        interactive && 'transition-colors duration-150 hover:border-neutral-600',
+        interactive && 'transition-colors duration-150 hover:border-primary/40',
         className
       )}
       {...props}

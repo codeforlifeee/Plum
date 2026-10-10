@@ -13,3 +13,4 @@ export { SegmentedControl } from './Tabs';
 export { Tooltip, TooltipProvider } from './Tooltip';
 export { Kbd } from './Kbd';
 export { Table, THead, TBody, Tr } from './Table';
+export { ThemeToggle } from './ThemeToggle';

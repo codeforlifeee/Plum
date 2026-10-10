@@ -36,7 +36,7 @@ function DistrictRow({ d, rank }) {
           <span className="font-medium text-sm truncate">{d.district}</span>
           <span className="text-sm tnum text-foreground">{formatShare(d.share, d.share_p10, d.share_p90)}</span>
         </div>
-        <div className="mt-1.5 h-1 rounded-full bg-neutral-800 overflow-hidden">
+        <div className="mt-1.5 h-1 rounded-full bg-muted overflow-hidden">
           <div className="h-full rounded-full bg-primary/70" style={{ width: `${Math.min(share * 3.5, 100)}%` }} />
         </div>
       </div>

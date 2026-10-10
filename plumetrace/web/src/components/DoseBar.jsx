@@ -21,7 +21,7 @@ export default function DoseBar({ current = 0, proposed, limit = 100 }) {
   const proposedOver = proposed > limit;
 
   return (
-    <div className="relative w-full h-2.5 rounded-full bg-neutral-800 overflow-hidden">
+    <div className="relative w-full h-2.5 rounded-full bg-muted overflow-hidden">
       {/* proposed (after re-plan) — drawn behind, success tint */}
       {proposedW !== null && (
         <div

@@ -18,6 +18,7 @@ import DoseBar from '../components/DoseBar';
 import SimulatedBadge from '../components/SimulatedBadge';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
+import { ThemeToggle } from '../components/ui/ThemeToggle';
 import { useLatestRun, useFleetExposure, useSkill } from '../hooks/queries';
 import { formatShare } from '../lib/format';
 import { getAqiColor, getAqiBand } from '../lib/aqi';
@@ -37,6 +38,7 @@ function PublicHeader() {
           </span>
         </Link>
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <Button asChild variant="ghost" size="sm">
             <Link to="/login">Sign in</Link>
           </Button>
@@ -141,7 +143,7 @@ function Hero() {
         {/* live mini-map */}
         <div className="pt-fade-in" style={{ animationDelay: '80ms' }}>
           <div className="pt-card p-2 overflow-hidden">
-            <div className="relative h-[340px] sm:h-[420px] rounded-[calc(var(--radius-lg)-6px)] overflow-hidden min-h-0 bg-neutral-950">
+            <div className="relative h-[340px] sm:h-[420px] rounded-[calc(var(--radius-lg)-6px)] overflow-hidden min-h-0 bg-muted">
               <PlumeMap districtData={null} fireData={null} />
               <div className="absolute top-3 right-3 z-10">
                 <AqiLegend />

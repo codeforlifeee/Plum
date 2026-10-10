@@ -17,6 +17,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { handleLogout } from '../../lib/auth';
 import { formatIst } from '../../lib/format';
 import { Button } from '../ui/Button';
+import { ThemeToggle } from '../ui/ThemeToggle';
 import { cn } from '../../lib/cn';
 
 const TABS = [
@@ -93,6 +94,7 @@ export default function AppShell({ children }) {
 
         <div className="flex items-center gap-2 sm:gap-3">
           <RunBadge run={run} />
+          <ThemeToggle />
           <Button asChild size="sm" className="hidden sm:inline-flex">
             <Link to="/copilot">
               <Sparkles size={15} aria-hidden /> Copilot
@@ -102,7 +104,7 @@ export default function AppShell({ children }) {
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
               <button
-                className="grid place-items-center w-9 h-9 rounded-full bg-secondary border border-border text-sm font-semibold text-foreground hover:border-neutral-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="grid place-items-center w-9 h-9 rounded-full bg-secondary border border-border text-sm font-semibold text-foreground hover:border-primary/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label="Account menu"
               >
                 {(user?.username || 'U').slice(0, 1).toUpperCase()}

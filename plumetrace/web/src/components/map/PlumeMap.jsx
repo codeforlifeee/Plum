@@ -12,35 +12,50 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { MapboxOverlay } from '@deck.gl/mapbox';
 import { useTimeStore } from '../../stores/timeStore';
+import { useThemeStore } from '../../stores/themeStore';
 import { useLatestRun, useForecast, useTrajectories, useFires } from '../../hooks/queries';
 import { createFiresLayer, createTripsLayer, createH3Layer, createDistrictsLayer } from './layers';
 
-// A self-contained dark raster style (CARTO dark basemap, no API key) so the map
-// always renders locally. In prod, VITE_LOCATION_STYLE_URL points at Amazon Location.
-// Keyless dark basemap (Esri Dark Gray Canvas) so the map renders locally with no
-// API key. In prod, VITE_LOCATION_STYLE_URL points at Amazon Location.
-const DEFAULT_STYLE = {
-  version: 8,
-  sources: {
-    esriDark: {
-      type: 'raster',
-      tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}'],
-      tileSize: 256,
-      attribution: 'Esri, HERE, Garmin, © OpenStreetMap contributors',
-      maxzoom: 16,
-    },
+// Keyless Esri Canvas basemaps (no API key) so the map always renders locally, in
+// a tone that matches the active theme. In prod, VITE_LOCATION_STYLE_URL points at
+// Amazon Location and overrides both.
+const BASEMAPS = {
+  dark: {
+    tiles: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+    bg: '#0a0c11',
   },
-  layers: [
-    { id: 'bg', type: 'background', paint: { 'background-color': '#0a0c11' } },
-    { id: 'esriDark', type: 'raster', source: 'esriDark', paint: { 'raster-opacity': 0.9 } },
-  ],
+  light: {
+    tiles: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+    bg: '#eef1f7',
+  },
 };
+
+function buildStyle(theme) {
+  const b = BASEMAPS[theme] || BASEMAPS.dark;
+  return {
+    version: 8,
+    sources: {
+      esriCanvas: {
+        type: 'raster',
+        tiles: [b.tiles],
+        tileSize: 256,
+        attribution: 'Esri, HERE, Garmin, © OpenStreetMap contributors',
+        maxzoom: 16,
+      },
+    },
+    layers: [
+      { id: 'bg', type: 'background', paint: { 'background-color': b.bg } },
+      { id: 'esriCanvas', type: 'raster', source: 'esriCanvas', paint: { 'raster-opacity': 0.92 } },
+    ],
+  };
+}
 
 export default function PlumeMap({ districtData, fireData }) {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
   const overlayRef = useRef(null);
   const { runId, getValidHour } = useTimeStore();
+  const theme = useThemeStore((s) => s.theme);
   const validHour = getValidHour();
 
   const [currentTime, setCurrentTime] = useState(0);
@@ -54,7 +69,7 @@ export default function PlumeMap({ districtData, fireData }) {
   // --- init map once ---
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return;
-    const style = import.meta.env.VITE_LOCATION_STYLE_URL || DEFAULT_STYLE;
+    const style = import.meta.env.VITE_LOCATION_STYLE_URL || buildStyle(theme);
 
     let map;
     try {
@@ -80,7 +95,18 @@ export default function PlumeMap({ districtData, fireData }) {
     ro.observe(mapContainer.current);
 
     return () => { ro.disconnect(); map.remove(); mapRef.current = null; overlayRef.current = null; };
+    // Init once. `theme` only seeds the first basemap; later theme changes are
+    // handled by the dedicated setStyle effect below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // --- swap the basemap when the theme changes (local keyless styles only) ---
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || import.meta.env.VITE_LOCATION_STYLE_URL) return;
+    map.setStyle(buildStyle(theme));
+    map.once('styledata', () => map.resize());
+  }, [theme]);
 
   // --- animate the trips "smoke flow" ---
   useEffect(() => {
@@ -94,17 +120,17 @@ export default function PlumeMap({ districtData, fireData }) {
   useEffect(() => {
     if (!overlayRef.current) return;
     const layers = [
-      createH3Layer(forecastData),
+      createH3Layer(forecastData, false, theme),
       createDistrictsLayer(districtData),
       createFiresLayer(fireData || firesData),
-      createTripsLayer(trajectoriesData, currentTime),
+      createTripsLayer(trajectoriesData, currentTime, theme),
     ].filter(Boolean);
     overlayRef.current.setProps({ layers });
-  }, [forecastData, districtData, fireData, firesData, trajectoriesData, currentTime]);
+  }, [forecastData, districtData, fireData, firesData, trajectoriesData, currentTime, theme]);
 
   return (
     <div className="absolute inset-0">
-      <div ref={mapContainer} className="w-full h-full" style={{ background: '#0a0c11' }} />
+      <div ref={mapContainer} className="w-full h-full" style={{ background: (BASEMAPS[theme] || BASEMAPS.dark).bg }} />
     </div>
   );
 }

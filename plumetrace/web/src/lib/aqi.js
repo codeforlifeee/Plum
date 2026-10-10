@@ -7,17 +7,18 @@
  * GUIDE    : docs/team/TANMAY.md  |  brief: docs/PROJECT_BRIEF.md
  * STATUS   : DONE
  */
-// India NAQI PM2.5 bands. Hexes retuned for perceptual evenness + dark-surface
-// contrast and validated with the dataviz palette validator (contrast PASS on
-// card #121826 and map #0a0c11). Ordinal ramp — always shown with band order +
-// numeric µg/m³, never colour alone. Keep in sync with --color-aqi-* in index.css.
+// India NAQI PM2.5 bands. Hexes retuned for perceptual evenness and to stay
+// legible on BOTH the dark map (#0a0c11) and the light map/basemap — the band
+// meaning is universal, so one ramp serves both themes. Ordinal ramp — always
+// shown with band order + numeric µg/m³, never colour alone. Keep in sync with
+// --color-aqi-* in index.css.
 export const AQI_BANDS = [
-  { min: 0, max: 30, label: 'Good', color: '#4cdd92' },
-  { min: 31, max: 60, label: 'Satisfactory', color: '#b6e24a' },
-  { min: 61, max: 90, label: 'Moderate', color: '#f7a015' },
-  { min: 91, max: 120, label: 'Poor', color: '#ee6c26' },
-  { min: 121, max: 250, label: 'Very Poor', color: '#e53b45' },
-  { min: 251, max: 9999, label: 'Severe', color: '#be3787' },
+  { min: 0, max: 30, label: 'Good', color: '#2fb871' },
+  { min: 31, max: 60, label: 'Satisfactory', color: '#9cc417' },
+  { min: 61, max: 90, label: 'Moderate', color: '#ef9500' },
+  { min: 91, max: 120, label: 'Poor', color: '#e35f1e' },
+  { min: 121, max: 250, label: 'Very Poor', color: '#dc2f3c' },
+  { min: 251, max: 9999, label: 'Severe', color: '#b22f7e' },
 ];
 
 export function getAqiBand(pm25) {
