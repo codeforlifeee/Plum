@@ -106,8 +106,14 @@ def ingest_openaq(payload: dict) -> dict:
     from plumetrace_engine.ingest import openaq
 
     payload = _env(payload)
-    result = openaq.ingest(_secret("plumetrace/openaq_key", "OPENAQ_API_KEY"))
-    payload["openaq"] = result
+    # OpenAQ supplies observations for verification/skill, not the forecast itself.
+    # A 429 / outage must not fail the whole run — mark the run degraded and go on.
+    try:
+        payload["openaq"] = openaq.ingest(_secret("plumetrace/openaq_key", "OPENAQ_API_KEY"))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("OpenAQ ingest failed (continuing degraded): %s", exc)
+        payload.setdefault("degraded", []).append("openaq")
+        payload["openaq"] = {"degraded": True}
     return payload
 
 

@@ -21,6 +21,9 @@ import argparse
 import logging
 import tempfile
 from dataclasses import dataclass
+from datetime import timedelta, timezone
+
+import numpy as np
 
 from plumetrace_engine.common import aoi, s3io, timeutil
 
@@ -156,7 +159,11 @@ def _decode_and_crop(grib_bytes: bytes, run_id: str, fff: int):
         )
         for src, dst in rename.items():
             if src in ds:
-                arrays[dst] = ds[src]
+                # Drop scalar level/time coords (isobaricInhPa, heightAboveGround,
+                # surface, step, time, valid_time, ...). They differ between GRIB
+                # groups and otherwise raise a MergeError when combined into one
+                # Dataset. We only need each variable on the lat/lon grid.
+                arrays[dst] = ds[src].reset_coords(drop=True)
 
     merged = xr.Dataset(arrays)
 
@@ -168,8 +175,11 @@ def _decode_and_crop(grib_bytes: bytes, run_id: str, fff: int):
         longitude=lon[(lon >= box.west) & (lon <= box.east)],
     )
 
-    valid = timeutil.run_id_to_dt(run_id) + __import__("datetime").timedelta(hours=fff)
-    merged = merged.assign_coords(valid_time=timeutil.parse_z(timeutil.iso_z(valid)))
+    valid = timeutil.run_id_to_dt(run_id) + timedelta(hours=fff)
+    # Store as numpy datetime64 (naive UTC) — a tz-aware Python datetime can't be
+    # serialized by xarray.to_netcdf ("unable to infer dtype on variable valid_time").
+    valid_naive = valid.astimezone(timezone.utc).replace(tzinfo=None)
+    merged = merged.assign_coords(valid_time=np.datetime64(valid_naive, "ns"))
     merged.attrs.update({"run_id": run_id, "lead_h": fff})
     return merged[CONTRACT_VARS] if all(v in merged for v in CONTRACT_VARS) else merged
 

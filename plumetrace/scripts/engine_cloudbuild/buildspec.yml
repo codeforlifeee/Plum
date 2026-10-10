@@ -1,0 +1,20 @@
+version: 0.2
+# AWS CodeBuild spec: build the engine Lambda image in the cloud and push to ECR.
+# Env vars (set on the CodeBuild project or overridden per build):
+#   ECR_REGISTRY  e.g. 171403826703.dkr.ecr.ap-south-1.amazonaws.com
+#   ECR_REPO      e.g. pt-dev-engine
+#   IMAGE_TAG     e.g. v4   (bump every build)
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to ECR...
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+  build:
+    commands:
+      - echo Building engine image...
+      - docker build -f engine/Dockerfile -t $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG .
+  post_build:
+    commands:
+      - echo Pushing image...
+      - docker push $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG
+      - echo DONE $ECR_REGISTRY/$ECR_REPO:$IMAGE_TAG
