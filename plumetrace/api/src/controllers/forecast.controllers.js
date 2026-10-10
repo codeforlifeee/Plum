@@ -50,8 +50,8 @@ export const svcForecast = async ({ run_id, valid_hour, bbox } = {}) => {
   const { Items = [] } = await doc.send(new QueryCommand({
     TableName: env.TABLE_FORECAST,
     IndexName: 'byRun',
-    // GSI byRun: PK run_id, SK gsi1sk = "<valid_hour>#<h3>" (DECISIONS D-16)
-    KeyConditionExpression: 'run_id = :r AND begins_with(gsi1sk, :vh)',
+    // GSI byRun (deployed): PK run_id, SK valid_hour. One hour = all h3 cells.
+    KeyConditionExpression: 'run_id = :r AND valid_hour = :vh',
     ExpressionAttributeValues: { ':r': run, ':vh': valid_hour },
   }));
 

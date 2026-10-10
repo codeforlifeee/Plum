@@ -15,6 +15,7 @@ import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as iam from "aws-cdk-lib/aws-iam";
 import { HttpApi, HttpMethod, CorsHttpMethod } from "aws-cdk-lib/aws-apigatewayv2";
 import { HttpJwtAuthorizer } from "aws-cdk-lib/aws-apigatewayv2-authorizers";
 import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations";
@@ -49,6 +50,8 @@ export interface ApiStackProps extends cdk.StackProps {
   agentLive?: boolean;
   /** ARNs of Khare/Yasho2 tool Lambdas the agent may invoke. */
   toolLambdaArns?: Record<string, string>;
+  /** Force MOCK_MODE on/off. Default: true for dev, false for demo. */
+  mockMode?: boolean;
 }
 
 export class ApiStack extends cdk.Stack {
@@ -153,7 +156,7 @@ export class ApiStack extends cdk.Stack {
         AWS_LWA_INVOKE_MODE: "buffered",
         NODE_ENV: "production",
         PT_STAGE: props.stage,
-        MOCK_MODE: props.stage === "dev" ? "1" : "0",
+        MOCK_MODE: (props.mockMode ?? props.stage === "dev") ? "1" : "0",
         // Live Claude over mock data when requested (demo). Off by default.
         AGENT_LIVE: props.agentLive ? "1" : "0",
         CORS_ORIGINS: webOrigins.join(","),
@@ -172,6 +175,25 @@ export class ApiStack extends cdk.Stack {
     for (const t of Object.values(data.tables)) t.grantReadWriteData(apiFn);
     // Let the API read the Anthropic key at cold start (least privilege — AC8).
     anthropicSecret.grantRead(apiFn);
+
+    // Allow the agent to invoke the gov/fleet tool Lambdas it drafts actions with.
+    const toolArns = Object.values(props.toolLambdaArns ?? {});
+    if (toolArns.length) {
+      apiFn.addToRolePolicy(new iam.PolicyStatement({
+        actions: ["lambda:InvokeFunction"],
+        resources: toolArns,
+      }));
+    }
+
+    // Approving a draft emits action.approved on the custom bus -> gov executor.
+    const busArn = cdk.Arn.format(
+      { service: "events", resource: "event-bus", resourceName: props.busName ?? cfg.busName },
+      this,
+    );
+    apiFn.addToRolePolicy(new iam.PolicyStatement({
+      actions: ["events:PutEvents"],
+      resources: [busArn],
+    }));
 
     // A Function URL with response streaming for SSE (/agent/chat) — see YASHO2 §7.
     const streamingUrl = apiFn.addFunctionUrl({

@@ -16,7 +16,8 @@ import * as tasks from "aws-cdk-lib/aws-stepfunctions-tasks";
 import * as events from "aws-cdk-lib/aws-events";
 import * as targets from "aws-cdk-lib/aws-events-targets";
 import * as logs from "aws-cdk-lib/aws-logs";
-import { appConfig, Stage } from "./config";
+import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
+import { appConfig, SECRET_NAMES, Stage } from "./config";
 import type { DataStack } from "./data-stack";
 
 const REPO_ROOT = path.join(__dirname, "..", "..");
@@ -35,8 +36,9 @@ export class EngineStack extends cdk.Stack {
     const cfg = appConfig(props.stage, this.account);
     const { data } = props;
 
-    // Custom EventBridge bus (brief §8.3). Gov/Fleet rules attach to it in their stacks.
-    this.bus = new events.EventBus(this, "Bus", { eventBusName: cfg.busName });
+    // The custom EventBridge bus now lives in DataStack (so gov/api don't depend on
+    // this heavy engine build). Reuse it here for forecast.published.
+    this.bus = data.bus;
 
     // One container image for every state; the state is selected by PT_HANDLER env,
     // and plumetrace_engine.handlers.lambda_handler dispatches on it.
@@ -85,6 +87,13 @@ export class EngineStack extends cdk.Stack {
       t.grantWriteData(griddingFn);
     }
     this.bus.grantPutEventsTo(publishFn);
+
+    // FIRMS + OpenAQ API keys live in Secrets Manager; the ingest handlers read them
+    // via _secret() (env var first, then Secrets Manager).
+    const firmsSecret = secretsmanager.Secret.fromSecretNameV2(this, "FirmsSecret", SECRET_NAMES.firmsMapKey);
+    const openaqSecret = secretsmanager.Secret.fromSecretNameV2(this, "OpenaqSecret", SECRET_NAMES.openaqKey);
+    firmsSecret.grantRead(ingestFirmsFn);
+    openaqSecret.grantRead(ingestOpenaqFn);
 
     // --- Step Functions `EngineRun` (§9) ------------------------------------
     // Each sequential task passes the whole {run_id, degraded[]} envelope in and

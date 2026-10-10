@@ -14,6 +14,7 @@ import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as kms from "aws-cdk-lib/aws-kms";
 import * as glue from "aws-cdk-lib/aws-glue";
 import * as iam from "aws-cdk-lib/aws-iam";
+import * as events from "aws-cdk-lib/aws-events";
 import { appConfig, FORECAST_GSI_BY_RUN, Stage, type TableKey } from "./config";
 
 export interface DataStackProps extends cdk.StackProps {
@@ -30,10 +31,16 @@ export class DataStack extends cdk.Stack {
   public readonly tables: Record<TableKey, dynamodb.Table>;
   public readonly riderHealthKey: kms.Key;
   public readonly glueDatabaseName: string;
+  public readonly bus: events.EventBus;
 
   constructor(scope: Construct, id: string, props: DataStackProps) {
     super(scope, id, props);
     const cfg = appConfig(props.stage, this.account);
+
+    // Custom EventBridge bus (brief §8.3). Lives here (not EngineStack) so the API
+    // and gov stacks can emit/consume action.* events without pulling in the heavy
+    // engine Docker build. EngineStack reuses this same bus for forecast.published.
+    this.bus = new events.EventBus(this, "Bus", { eventBusName: cfg.busName });
     const isDemo = props.stage === "demo";
     const removalPolicy = isDemo ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY;
 
@@ -89,7 +96,8 @@ export class DataStack extends cdk.Stack {
       removalPolicy,
       globalSecondaryIndexes: [
         {
-          // NOTE(Yasho2): confirm the exact byRun sort key in contracts (handoff #8).
+          // byRun SK is valid_hour (matches the deployed table + the API's
+          // `run_id = :r AND valid_hour = :vh` query in forecast.controllers.js).
           indexName: FORECAST_GSI_BY_RUN,
           partitionKey: { name: "run_id", type: dynamodb.AttributeType.STRING },
           sortKey: { name: "valid_hour", type: dynamodb.AttributeType.STRING },

@@ -23,7 +23,7 @@ async function getTelegramConfig() {
   }
   if (secretCache) return secretCache;
   
-  const client = new SecretsManagerClient({ region: 'us-east-1' });
+  const client = new SecretsManagerClient({ region: process.env.AWS_REGION || 'ap-south-1' });
   try {
     const res = await client.send(new GetSecretValueCommand({ SecretId: 'plumetrace/telegram' }));
     secretCache = JSON.parse(res.SecretString);

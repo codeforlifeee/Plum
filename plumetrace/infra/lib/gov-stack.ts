@@ -30,6 +30,11 @@ export interface GovStackProps extends cdk.StackProps {
 }
 
 export class GovStack extends cdk.Stack {
+  public readonly reportGenerator: NodejsFunction;
+  public readonly farmerAlert: NodejsFunction;
+  public readonly fireTrend: NodejsFunction;
+  public readonly executor: NodejsFunction;
+
   constructor(scope: Construct, id: string, props: GovStackProps) {
     super(scope, id, props);
     const cfg = appConfig(props.stage, this.account);
@@ -67,33 +72,45 @@ export class GovStack extends cdk.Stack {
 
     const reportGenerator = mkFn("reportGenerator", "reportGenerator/handler.js", 2048, 60);
     const farmerAlert = mkFn("farmerAlert", "farmerAlert/handler.js", 1024, 60);
-    const autoDraft = mkFn("autoDraft", "autoDraft/handler.js");
+    const autoDraft = mkFn("autoDraft", "autoDraft/handler.js", 1024, 120);
     const executor = mkFn("executor", "executor/handler.js");
     const fireTrend = mkFn("fireTrend", "verification/fireTrend.js");
     const govVerify = mkFn("govVerify", "verification/govVerify.js", 512, 60);
+    this.reportGenerator = reportGenerator;
+    this.farmerAlert = farmerAlert;
+    this.fireTrend = fireTrend;
+    this.executor = executor;
 
     // --- grants (least privilege, CDK grant* only — AC8) --------------------
     data.bucket.grantReadWrite(reportGenerator);
     data.bucket.grantReadWrite(farmerAlert);
-    data.bucket.grantRead(autoDraft);
+    // autoDraft runs the report + farmer handlers in-process, so it needs their grants.
+    data.bucket.grantReadWrite(autoDraft);
     data.bucket.grantReadWrite(executor);
     data.bucket.grantRead(fireTrend);
     data.bucket.grantReadWrite(govVerify);
 
+    // reportGenerator + farmerAlert write drafts to the Actions table (createDraft).
     data.tables.Actions.grantReadWriteData(autoDraft);
     data.tables.Actions.grantReadWriteData(executor);
-    data.tables.Actions.grantReadData(reportGenerator);
+    data.tables.Actions.grantReadWriteData(reportGenerator);
+    data.tables.Actions.grantReadWriteData(farmerAlert);
     data.tables.Attribution.grantReadData(fireTrend);
     data.tables.Attribution.grantReadData(autoDraft);
 
     telegram.grantRead(farmerAlert);
     telegram.grantRead(executor);
+    // executor emits action.executed on the custom bus (best-effort in the handler).
+    bus.grantPutEventsTo(executor);
 
     // Translate + Polly for the Punjabi farmer alert (action-level, resource "*" is required).
-    farmerAlert.addToRolePolicy(new iam.PolicyStatement({
-      actions: ["translate:TranslateText", "polly:SynthesizeSpeech"],
-      resources: ["*"],
-    }));
+    // autoDraft also needs them because it invokes the farmer-alert handler in-process.
+    for (const fn of [farmerAlert, autoDraft]) {
+      fn.addToRolePolicy(new iam.PolicyStatement({
+        actions: ["translate:TranslateText", "polly:SynthesizeSpeech"],
+        resources: ["*"],
+      }));
+    }
 
     // --- event rules --------------------------------------------------------
     // forecast.published -> autoDraft (threshold check lives in the handler, §8.3).

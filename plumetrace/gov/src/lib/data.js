@@ -6,6 +6,11 @@
  * DONE WHEN: -
  * GUIDE    : docs/team/KHARE.md  |  brief: docs/PROJECT_BRIEF.md
  * STATUS   : DONE
+ *
+ * Fixes (integration): read PT_BUCKET / PT_TABLE_ATTRIBUTION (the names the gov CDK
+ * stack actually sets), use the Lambda's own AWS_REGION (ap-south-1) instead of a
+ * hard-coded us-east-1, and resolve run_id='latest' via the outputs/latest.json
+ * pointer (D-10) before reading the per-run summary/fires.
  */
 
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
@@ -14,25 +19,35 @@ import { DynamoDBDocumentClient, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import fs from 'fs/promises';
 import path from 'path';
 
-// Note: In real app, we would use zod to validate, but here we just return the JSON for simplicity,
-// or we assume it's valid.
+const isLocal = process.env.PT_LOCAL === '1';
+const region = process.env.AWS_REGION || 'ap-south-1';
+const bucketName = () => process.env.PT_BUCKET || process.env.BUCKET_DATA;
 
-const isLocal = process.env.MOCK_MODE === '1' || process.env.PT_LOCAL === '1';
-
-const s3 = new S3Client({ region: 'us-east-1' });
-const ddbClient = new DynamoDBClient({ region: 'us-east-1' });
+const s3 = new S3Client({ region });
+const ddbClient = new DynamoDBClient({ region });
 const ddb = DynamoDBDocumentClient.from(ddbClient);
+
+async function getJson(key) {
+  const res = await s3.send(new GetObjectCommand({ Bucket: bucketName(), Key: key }));
+  const str = await res.Body.transformToString();
+  return JSON.parse(str);
+}
+
+/** Resolve 'latest' -> real run_id via the outputs/latest.json pointer (D-10). */
+export async function resolveRun(run_id) {
+  if (run_id && run_id !== 'latest') return run_id;
+  if (isLocal) return '2026-10-09T00Z';
+  const ptr = await getJson('outputs/latest.json');
+  return ptr.run_id;
+}
 
 export async function getSummary(run_id) {
   if (isLocal) {
     const raw = await fs.readFile(path.join(process.cwd(), '..', 'contracts', 'mocks', 'summary.json'), 'utf-8');
     return JSON.parse(raw);
   }
-  const bucket = process.env.BUCKET_DATA;
-  const key = run_id === 'latest' ? 'outputs/latest.json' : `outputs/run=${run_id}/summary.json`;
-  const res = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
-  const str = await res.Body.transformToString();
-  return JSON.parse(str);
+  const run = await resolveRun(run_id);
+  return getJson(`outputs/run=${run}/summary.json`);
 }
 
 export async function getAttribution(date) {
@@ -40,7 +55,7 @@ export async function getAttribution(date) {
     const raw = await fs.readFile(path.join(process.cwd(), '..', 'contracts', 'mocks', 'attribution.json'), 'utf-8');
     return JSON.parse(raw);
   }
-  const table = process.env.TABLE_ATTRIBUTION || 'pt-demo-Attribution';
+  const table = process.env.PT_TABLE_ATTRIBUTION || process.env.TABLE_ATTRIBUTION || 'pt-dev-Attribution';
   const res = await ddb.send(new QueryCommand({
     TableName: table,
     KeyConditionExpression: 'pk = :pk',
@@ -58,10 +73,12 @@ export async function getFiresGeojson(run_id) {
       return { type: 'FeatureCollection', features: [] };
     }
   }
-  const bucket = process.env.BUCKET_DATA;
-  const res = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: `outputs/run=${run_id}/fires_48h.geojson` }));
-  const str = await res.Body.transformToString();
-  return JSON.parse(str);
+  try {
+    const run = await resolveRun(run_id);
+    return await getJson(`outputs/run=${run}/fires_48h.geojson`);
+  } catch {
+    return { type: 'FeatureCollection', features: [] };
+  }
 }
 
 export async function getChcCentres() {
@@ -69,8 +86,9 @@ export async function getChcCentres() {
     const raw = await fs.readFile(path.join(process.cwd(), '..', 'static', 'chc_centres.geojson'), 'utf-8');
     return JSON.parse(raw);
   }
-  const bucket = process.env.BUCKET_DATA;
-  const res = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: 'static/chc_centres.geojson' }));
-  const str = await res.Body.transformToString();
-  return JSON.parse(str);
+  try {
+    return await getJson('static/chc_centres.geojson');
+  } catch {
+    return { type: 'FeatureCollection', features: [] };
+  }
 }

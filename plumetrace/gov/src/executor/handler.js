@@ -6,113 +6,107 @@
  * DONE WHEN: AC6: approval -> phone buzzes in < 30 s.
  * GUIDE    : docs/team/KHARE.md  |  brief: docs/PROJECT_BRIEF.md
  * STATUS   : DONE
+ *
+ * Fixes (integration): read PT_BUCKET, transition the action via the real shared
+ * actions repo (the contracts module exports makeActionsRepo, not a bare
+ * transition), and deliver district reports by link (preview_url/pdf_url in the
+ * payload) with a best-effort PDF attachment.
  */
 
 import { sendMessage, sendAudio, sendDocument } from '../delivery/telegram.js';
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
-import crypto from 'crypto';
-import fs from 'fs/promises';
-import path from 'path';
+import { actionsRepo } from '../lib/actions.js';
 
-let actionsRepo;
-try {
-  actionsRepo = await import('../../../contracts/src/actionsRepo.js');
-} catch(e) {
-  actionsRepo = {
-    transition: async () => {},
-    getAction: async (id) => ({ status: 'approved' })
-  };
-}
+const region = process.env.AWS_REGION || 'ap-south-1';
+const ebClient = new EventBridgeClient({ region });
+const s3Client = new S3Client({ region });
+const isLocal = process.env.PT_LOCAL === '1';
 
-const ebClient = new EventBridgeClient({ region: process.env.AWS_REGION || 'us-east-1' });
-const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
-const isMock = process.env.MOCK_MODE === '1' || process.env.PT_LOCAL === '1';
-
-async function fetchFromS3OrLocal(key) {
-  if (isMock) {
-    const localPath = path.join(process.cwd(), '.local-s3', key);
-    return await fs.readFile(localPath);
-  } else {
-    const bucket = process.env.BUCKET_DATA || 'pt-demo-bucket';
-    const res = await s3Client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
-    const chunks = [];
-    for await (const chunk of res.Body) {
-      chunks.push(chunk);
-    }
-    return Buffer.concat(chunks);
-  }
+async function fetchFromS3(key) {
+  const bucket = process.env.PT_BUCKET || process.env.BUCKET_DATA;
+  const res = await s3Client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+  const chunks = [];
+  for await (const chunk of res.Body) chunks.push(chunk);
+  return Buffer.concat(chunks);
 }
 
 export const handler = async (event) => {
-  // EventBridge structure: detail contains the actual payload
+  // EventBridge structure: detail contains the actual payload (the ActionItem).
   const detail = event.detail || event;
   const actionId = detail.action_id;
   const type = detail.type;
   const payload = detail.payload || {};
-  
+
   try {
-    if (actionsRepo.transition) {
-      // Assuming actionsRepo handles DB lock, though in mock it does nothing
-      // We should really only execute if it transitions successfully.
-      // But we proceed optimistically here for the demo.
-    }
-    
     if (type === 'district_report') {
-      const pdfKey = `reports/${actionId}.pdf`;
-      try {
-        const docBuf = await fetchFromS3OrLocal(pdfKey);
-        await sendDocument('gov', docBuf, `Report_${payload.district}.pdf`, payload.headline || 'District Report');
-      } catch (e) {
-        console.error('Failed to send district report', e);
-        await sendMessage('gov', `District Report available at: ${payload.headline}`);
+      const headline = payload.headline || `District report: ${payload.district || ''}`;
+      let sent = false;
+      if (payload.pdf_key) {
+        try {
+          const docBuf = await fetchFromS3(payload.pdf_key);
+          await sendDocument('gov', docBuf, `Report_${payload.district || 'district'}.pdf`, headline);
+          sent = true;
+        } catch (e) {
+          console.error('PDF attach failed, falling back to link', e?.message);
+        }
       }
-      
+      if (!sent) {
+        const link = payload.pdf_url || payload.preview_url;
+        await sendMessage('gov', link ? `${headline}\n\n${link}` : headline);
+      }
     } else if (type === 'farmer_alert') {
-      const audioKey = `audio/${actionId}.mp3`;
-      try {
-        const audioBuf = await fetchFromS3OrLocal(audioKey);
-        await sendAudio('farmer_demo', audioBuf, payload.paText || 'Farmer Alert');
-      } catch (e) {
-        console.error('Failed to send audio', e);
-        await sendMessage('farmer_demo', payload.paText || 'Farmer Alert (Audio unavailable)');
+      const caption = payload.text || payload.paText || 'Farmer Alert';
+      let sent = false;
+      if (payload.audio_key) {
+        try {
+          const audioBuf = await fetchFromS3(payload.audio_key);
+          await sendAudio('farmer_demo', audioBuf, caption);
+          sent = true;
+        } catch (e) {
+          console.error('Audio send failed, falling back to text', e?.message);
+        }
       }
-      
+      if (!sent) await sendMessage('farmer_demo', caption);
     } else if (type === 'rider_notify') {
-      await sendMessage('rider_demo', payload.message || 'Rider Notification');
-      
+      const msgs = Array.isArray(payload.messages) ? payload.messages : null;
+      if (msgs && msgs.length) {
+        for (const m of msgs) await sendMessage('rider_demo', `${m.rider_id ? `(${m.rider_id}) ` : ''}${m.text}`);
+      } else {
+        await sendMessage('rider_demo', payload.message || 'Rider Notification');
+      }
     } else if (type === 'shift_plan') {
-      // Write new plan_version into Shifts
-      console.log('Writing new shift plan...');
-      // TODO: implement Shift DB update in real logic
+      console.log('shift_plan approved — plan write handled by fleet module');
     } else {
       console.warn(`Unknown action type: ${type}`);
     }
-    
-    if (actionsRepo.transition) {
-      await actionsRepo.transition(actionId, 'approved', 'executed');
+
+    // Transition approved -> executed via the real repo (idempotent condition).
+    try {
+      await actionsRepo().transition(actionId, 'approved', 'executed');
+    } catch (e) {
+      console.warn('transition approved->executed skipped:', e?.message);
     }
-    
-    if (!isMock) {
-      await ebClient.send(new PutEventsCommand({
-        Entries: [{
-          Source: 'plumetrace.executor',
-          DetailType: 'action.executed',
-          Detail: JSON.stringify({ action_id: actionId, type }),
-          EventBusName: 'default'
-        }]
-      }));
+
+    if (!isLocal) {
+      try {
+        await ebClient.send(new PutEventsCommand({
+          Entries: [{
+            Source: 'plumetrace.verify',
+            DetailType: 'action.executed',
+            Detail: JSON.stringify({ action_id: actionId, type }),
+            EventBusName: process.env.PT_EVENT_BUS || 'default',
+          }],
+        }));
+      } catch (e) {
+        console.warn('PutEvents action.executed skipped:', e?.message);
+      }
     }
-    
+
     return { status: 'executed', action_id: actionId };
-    
   } catch (err) {
     console.error('Executor failed', err);
-    if (actionsRepo.transition) {
-      try {
-        await actionsRepo.transition(actionId, 'approved', 'failed', { error: err.message });
-      } catch (e) {}
-    }
+    try { await actionsRepo().transition(actionId, 'approved', 'failed', { error: err.message }); } catch { /* noop */ }
     throw err;
   }
 };

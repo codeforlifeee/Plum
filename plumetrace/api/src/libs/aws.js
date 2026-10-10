@@ -35,6 +35,7 @@ export async function getDdbCommands() {
       QueryCommand: m.QueryCommand,
       ScanCommand: m.ScanCommand,
       DeleteCommand: m.DeleteCommand,
+      BatchGetCommand: m.BatchGetCommand,
     };
   }
   return _ddbCommands;
@@ -105,6 +106,19 @@ export async function invokeLambda(functionName, payload) {
     throw err;
   }
   return parsed;
+}
+
+/**
+ * Persist a real draft action to the Actions table (used by fleet tools when the
+ * real re-planner/notify Lambdas aren't deployed, so the copilot's drafts still
+ * show up in Approvals in non-mock mode instead of vanishing into the mock store).
+ */
+export async function createRealDraft(type, payload, runId = null) {
+  const doc = await getDocClient();
+  const { PutCommand, GetCommand, UpdateCommand } = await getDdbCommands();
+  const { makeActionsRepo } = await import('@plumetrace/contracts/actionsRepo');
+  const repo = makeActionsRepo({ doc, table: env.TABLE_ACTIONS, PutCommand, GetCommand, UpdateCommand });
+  return repo.createDraft(type, payload, runId);
 }
 
 export async function getBedrock() {

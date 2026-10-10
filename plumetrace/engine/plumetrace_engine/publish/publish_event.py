@@ -96,6 +96,21 @@ def publish(run_id: str, stage: str, degraded: list[str] | None = None, summary:
     _validate(detail)
     envelope = build_envelope(detail, stage)
 
+    # Write the outputs/latest.json pointer (D-10): the API resolves the newest run
+    # from here (forecast.controllers.js latestPointer). Without it the real read
+    # path has no way to find the current run_id.
+    pointer = {
+        "run_id": run_id,
+        "issued_at": _now_z(),
+        "summary_s3": _summary_s3_uri(run_id),
+        "degraded": degraded or [],
+    }
+    try:
+        s3io.put_json(s3io.key_latest_pointer(), pointer, indent=2)
+        log.info("wrote latest pointer -> run %s", run_id)
+    except Exception as exc:  # noqa: BLE001 - pointer must not block publish
+        log.warning("failed to write latest pointer: %s", exc)
+
     if s3io.local_mode():
         key = s3io.key_outputs(run_id, "forecast_published.event.json")
         s3io.put_json(key, envelope, indent=2)

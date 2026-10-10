@@ -32,48 +32,39 @@ export const handler = async (event) => {
     return { district, trend };
   }
   
-  // Real implementation: DynamoDB query from Attribution table
+  // Real implementation: read the Attribution table (pk=date#<date>, sk=district#<district>).
   try {
     const { DynamoDBClient } = await import('@aws-sdk/client-dynamodb');
-    const { DynamoDBDocumentClient, QueryCommand } = await import('@aws-sdk/lib-dynamodb');
-    
-    const client = new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' });
-    const docClient = DynamoDBDocumentClient.from(client);
-    
-    // In a real app, you would query the Attribution table by district and date range
-    // Since we don't have the exact schema, we will mock the DynamoDB query logic loosely
-    // Assuming PK=District, SK=Date
-    
-    const trend = [];
+    const { DynamoDBDocumentClient, GetCommand } = await import('@aws-sdk/lib-dynamodb');
+
+    const region = process.env.AWS_REGION || 'ap-south-1';
+    const table = process.env.PT_TABLE_ATTRIBUTION || process.env.TABLE_ATTRIBUTION || 'pt-dev-Attribution';
+    const docClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region }));
+
+    const daily = [];
     const date = new Date();
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date(date);
       d.setDate(d.getDate() - i);
       const dayStr = d.toISOString().split('T')[0];
-      
-      const cmd = new QueryCommand({
-        TableName: process.env.TABLE_ATTRIBUTION || 'pt-demo-Attribution',
-        KeyConditionExpression: 'PK = :pk and SK = :sk',
-        ExpressionAttributeValues: {
-          ':pk': `DISTRICT#${district}`,
-          ':sk': `DATE#${dayStr}`
-        }
+      const res = await docClient.send(new GetCommand({
+        TableName: table,
+        Key: { pk: `date#${dayStr}`, sk: `district#${district}` },
+      }));
+      const item = res.Item || null;
+      daily.push({
+        date: dayStr,
+        fire_count: item?.fire_count ?? 0,
+        frp_sum_mw: item?.frp_sum_mw ?? 0,
       });
-      
-      const res = await docClient.send(cmd);
-      const item = res.Items && res.Items[0] ? res.Items[0] : null;
-      
-      if (item) {
-        trend.push({
-          date: dayStr,
-          fire_count: item.fire_count || 0,
-          frp_sum: item.frp_sum || 0
-        });
-      } else {
-        trend.push({ date: dayStr, fire_count: 0, frp_sum: 0 });
-      }
     }
-    return { district, trend };
+
+    // Simple trend: last day's fire_count vs the first non-zero day.
+    const firstNonZero = daily.find((x) => x.fire_count > 0)?.fire_count;
+    const last = daily[daily.length - 1]?.fire_count ?? 0;
+    const trend_pct = firstNonZero ? Math.round(((last - firstNonZero) / firstNonZero) * 100) / 100 : 0;
+
+    return { district, days, daily, trend_pct };
   } catch (err) {
     console.error('Failed to fetch fire trend:', err);
     throw err;

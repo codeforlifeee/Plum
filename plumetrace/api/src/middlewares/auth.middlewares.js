@@ -14,10 +14,14 @@ let _verifier = null;
 async function verifyJwt(token) {
   if (!_verifier) {
     const { CognitoJwtVerifier } = await import('aws-jwt-verify');
+    // The web app sends the Cognito **ID** token (web/src/lib/api.js uses
+    // tokens.idToken), which is also what the API Gateway JWT authorizer validates
+    // (jwtAudience = clientId). tokenUse:null accepts either id or access so this
+    // defence-in-depth check matches what the browser actually sends.
     _verifier = CognitoJwtVerifier.create({
       userPoolId: env.COGNITO_POOL_ID,
       clientId: env.COGNITO_CLIENT_ID,
-      tokenUse: 'access',
+      tokenUse: null,
     });
   }
   return _verifier.verify(token);
